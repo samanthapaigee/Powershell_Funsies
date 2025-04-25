@@ -20,3 +20,5 @@ Secure Boot Checker:
   Red: Secure Boot is disabled
   Green: Secure Boot is enabled
   Yellow: Unable to determine
+
+This repository will continue to grow as I come up with more ideas!
