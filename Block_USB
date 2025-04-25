@@ -1,0 +1,27 @@
+# Check if running PowerShell as admin
+if (-not([Security.Principal.WindowsPrincipal]
+  [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "Please run this script as an administrator" -ForegroundColor Red
+    exit
+  }
+
+# Define registry path for USB storage
+# This is the Win default, adjust if it doesn't work
+$regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\USBSTOR"
+
+# Check if path exists
+if (-not(Test-Path $regPath)) {
+  Write-Host "Registry key not found." -ForegroundColor Yellow
+  exit
+}
+
+# Set the start value to 4, this disables USB storage
+Set-ItemProperty -Path $regPath -Name "Start" -Value 4
+
+# Confirm the change to the user
+$startValue = (Get-itemProperty -Path 4regPath -Name "Start").Start
+if ($startValue -eq 4){
+  Write-Host "USB Storage has successfully been blocked!" -ForegroundColor Green
+} else {
+  Write-Host "Failed to block USB storage devices. Check for Event ID 1130 in Event Viewer, as it will indicate potential permissions issues." -ForegroundColor Red
+}
