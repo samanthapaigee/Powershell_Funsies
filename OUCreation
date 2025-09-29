@@ -1,0 +1,4 @@
+$path = "DC=,DC="
+$ouname
+
+New-ADOrganizationalUnit -Name $ouname -Path $path 
