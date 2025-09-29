@@ -1,1 +1,12 @@
+Import-Module GroupPolicy
 
+#path needs to end in GPO GUID
+$path = ""
+
+#
+$xml = [xml](Get-Content (Join-Path $path 'Backup.xml'))
+
+$gpoName = $xml.Backup.GPO.Name
+
+if (-not (Get-GPO -Name $gpoName -ErrorAction SilentlyContinue)) {New-GPO -Name $gpoName | Out-Null}
+Import-GPO -TargetName $gpoName -path $path -BackupId $xml.Backup.GPO.BackupId
