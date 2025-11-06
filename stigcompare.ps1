@@ -15,10 +15,64 @@ function Assert-File([string]$Path) {
 }
 
 function Load-Xml([string]$Path) {
-  $xml = New-Object System.Xml.XmlDocument
-  $xml.PreserveWhitespace = $true
-  $xml.Load($Path)
-  return $xml
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+function Load-Xml([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path)) {
+    throw "File not found: $Path"
+  }
+
+  # Read first 4 bytes to detect ZIP ("PK")
+  $fs = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+  try {
+    [byte[]]$sig = New-Object byte[] 4
+    $null = $fs.Read($sig, 0, 4)
+    $isZip = ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) # 'P''K'
+    $fs.Position = 0
+
+    if ($isZip) {
+      # It's a CKLB package (ZIP). Open and find an inner XML/CKL/CKLB file.
+      $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Read, $true)
+      try {
+        $entry = $zip.Entries |
+          Where-Object { $_.FullName -match '\.(xml|ckl|cklb)$' } |
+          Sort-Object { $_.Length } |
+          Select-Object -First 1
+
+        if (-not $entry) {
+          throw "ZIP package contains no XML/CKL/CKLB entries: $Path"
+        }
+
+        $es = $entry.Open()
+        try {
+          $sr = New-Object System.IO.StreamReader($es)
+          try {
+            $xmlText = $sr.ReadToEnd()
+          } finally { $sr.Dispose() }
+        } finally { $es.Dispose() }
+
+        if (-not $xmlText.TrimStart().StartsWith('<')) {
+          throw "Inner entry '$($entry.FullName)' is not XML (starts with: '$($xmlText.TrimStart().Substring(0, [Math]::Min(20, $xmlText.TrimStart().Length)))')."
+        }
+
+        $xml = New-Object System.Xml.XmlDocument
+        $xml.PreserveWhitespace = $true
+        $xml.LoadXml($xmlText)
+        return $xml
+      } finally {
+        $zip.Dispose()
+      }
+    } else {
+      # Plain text XML file path
+      $xml = New-Object System.Xml.XmlDocument
+      $xml.PreserveWhitespace = $true
+      $xml.Load($Path)   # handles UTF-8 BOM
+      return $xml
+    }
+  } finally {
+    $fs.Dispose()
+  }
 }
 
 function Save-Xml([xml]$XmlDoc, [string]$Path) {
