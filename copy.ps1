@@ -13,4 +13,4 @@ Get-ChildItem -Path $SourceDir -File -Recurse | Where-Object { $_.LastWriteTime 
   $destinationDirectory = Split-Path -Path $destinationPath -Parent
 }
 
-Move-Item -Path $_.FullName -Destination $destinationPath -Force
+Move-Item -Path $sourceDir -Destination $destinationPath -Force
